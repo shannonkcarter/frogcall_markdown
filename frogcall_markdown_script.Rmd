@@ -1,0 +1,284 @@
+---
+title: "Frog Breeding Responses to Climate Change"
+author: "Shannon Carter"
+date: "February 19, 2019"
+output: html_document
+---
+
+Climate change shifts plants' and animals' seasonal schedules, because events like breeding, migration, and metamorphosis are timed by climate cues. Here, I examine this response in populations of frogs in East Texas. 20 years ago, a collaborator in the USDA installed audio recorders in 8 ponds in East Texas. These recorders are programmed to record 6 times daily, capturing the breeding calls of frogs at the ponds. I've analyzed this data in R to measure if/how frog breeding timing is shifting and how this will affect frogs' interactions with each other. I was the lead author on this project, meaning I conceptualized the questions, performed all data management and analysis, and interpreted and wrote up results for publication. This RMarkdown document provides a summary of the analysis for one of two major questions for this project. For the full picture, please feel free to contact me at skcarter25@gmail.com or see the publication in [Ecology Letters](https://shannonkcarter.weebly.com/uploads/1/2/2/1/122153528/cartersaenzrudolf_ele2018.pdf).
+
+```{r setup, include = F}
+knitr::opts_chunk$set(echo = TRUE)
+
+## Set working directory and clear memory
+setwd("C:\\Users\\Shannon\\Dropbox\\Phenology field data_Dan\\east TX frog call sampling\\shannons_script")
+rm(list = ls(all = T))
+
+## Load required packages
+library(car)
+library(tidyverse)
+library(multcomp)
+library(reshape2)
+library(sfsmisc)
+library(RColorBrewer)
+library(ggExtra)
+library(lattice)
+library(gridExtra)
+library(lme4)
+library(lmerTest)
+library(cowplot)
+library(wesanderson)
+
+## Load universal plotting elements
+mytheme <- theme(panel.background = element_blank(),
+                 panel.grid.minor = element_blank(), 
+                 panel.grid.major = element_blank(),
+                 axis.text  = element_text(size = rel(1.7),colour = "black"),
+                 axis.title = element_text(size = rel(2.0)),
+                 axis.line  = element_line(colour = "black"))
+
+## RAW DATA
+p1 <- read.csv("CallingDataPond1.csv")
+p2 <- read.csv("CallingDataPond2.csv")
+p3 <- read.csv("CallingDataPond3.csv")
+p4 <- read.csv("CallingDataPond4.csv")
+p5 <- read.csv("CallingDataPond5.csv")
+p6 <- read.csv("CallingDataPond6.csv")
+p7 <- read.csv("CallingDataPond7.csv")
+p8 <- read.csv("CallingDataPond8.csv")
+
+## DAILY SUM AND YEARLY CUMULATIVE CALL FOR ALL Y-P-S
+daily <- read.csv("dailycalls.csv", header = T)
+
+## UNFILTERED ALL SP OVERLAP MATRIX
+all <- read.csv("overmat.csv")
+
+## FILTERED SP OVERLAP MATRIX
+fall <- read.csv("filtered_all.csv", header = T)
+fall$pond <- as.factor(fall$pond)
+
+## PHENOLOGY ~ YEAR: ALL REGRESSION MODELS
+start_year <- read.csv("start_year.csv", header = T)       ## START ~ YEAR
+over_year  <- read.csv("over_year.csv", header = T)        ## OVERLAP ~ YEAR
+start_year_re <- read.csv("start_year_re.csv", header = T) ## START ~ YEAR; POND AS RE
+over_year_re  <- read.csv("over_year_re.csv", header = T)  ## OVERLAP ~ YEAR; POND AS RE
+med_year_re   <- read.csv("med_year_re.csv", header = T)   ## MEDIAN ~ YEAR; POND AS RE
+
+## PHENOLOGY ~ YEAR: REGRESSION MODELS WITH MEANS/SE
+start_year_err <- read.csv("start_year_err.csv",  header = T) ## START ~ YEAR
+over_year_err  <- read.csv("over_year_err.csv", header = T)   ## OVERLAP ~ YEAR
+
+```
+
+## Process and tidy raw data
+We have 8 raw data files, each representing 1 pond. Each row represents one time point (6 per day from May 2000 through Dec. 2018) and includes the number of calls made by 12 species of frogs (in columns)
+```{r, echo = F, warning = F}
+p1test <- p1
+p1test$TIME <- NULL
+p1test$DATE <- NULL
+head(p1test)
+```
+Here, I merge the data for the ponds, melt to long format, and adjust time & date format.
+```{r, echo = T, results = 'hide', warning = F}
+
+## Stack raw data into one df
+p18 <- rbind(p1, p2, p3, p4, p5, p6, p7, p8)
+
+## Change to long format and rename columns
+mp18 <- melt(p18, id.vars = c("POND", "YEAR", "FROGTIME","FROGDATE"),
+             measure.vars = c("HV", "HC", "BV", "BW", "RCA", "RCL", 
+                              "RS", "GC", "PC", "PT", "AC", "RP")) # codes for 12 species
+names(mp18) <- c("pond", "year", "time", "date", "sp", "calls")
+
+## Adjust time variable
+time  <- paste(mp18$date, mp18$time)
+time1 <- strptime(time,"%m/%d/%Y %H:%M")
+time2 <- as.POSIXlt(time1)
+time3 <- as.Date(time2, "%m/%d/%Y %H:%M")
+mp18$time <- time3
+mp18 <- subset(mp18, select = c("pond", "year", "time", "sp", "calls"))
+```
+
+## Summarize by day and add a cumulative column 
+
+This code sums the 6 daily observations for each species at each site and adds a cumulative column which is a running total of all observations for each species and site for the year.
+```{r, echo = T, results = 'hide', warning = F}
+
+## First, sum all 6 daily observations
+sums <- mp18 %>%
+  group_by(pond, year, time, sp) %>%
+  summarize(dailysum = sum(calls))
+
+## Make a function that treats NA days like 0
+cumsumxNA <- function(x) {
+  x[which(is.na(x))] = 0
+  return(cumsum(x))
+}
+
+## Run daily data through modified cumulative sum function
+daily <- sums %>%
+  group_by(pond, sp, year) %>%
+  transform(cumsum = cumsumxNA(dailysum))
+
+## Clean it up and write it
+daily <- daily[daily$year != 2000 ,]   # 2000 is an incomplete year, so we drop it
+daily$doy <- as.numeric(strftime(daily$time, format = "%j"))  # adding a 'day of year'
+```
+
+## Visualizing the raw data
+
+This function allows me to plot the overlapping distributions of any two species in any year and pond. The example plot shows number of calls over time for the gray tree frog (in orange) and the green frog (in blue) in 2007 at pond 4. The major objective of this project was to calculate how the area of overlap (visible in the plot at the area where the blue and orange distributions intersect) changed across years for pairwise combination of species. This would tell us if climate change-driven shifts in breeding timing influence the competition between species. 
+```{r, warning = F}
+
+### Function to plot calling distributions for pairs of species 
+
+## The function takes four inputs: species 1, species 2, year, and pond
+overlapplot <- function(s1, s2, y, p) {
+  
+  ## Subset year and pond of interest for each species
+  s1 <- subset(daily, subset = (sp == s1 & year == y & pond == p))
+  s2 <- subset(daily, subset = (sp == s2 & year == y & pond == p))
+  
+  ## Run lowess functions-- this smoothes scatter plot data into a distribution
+  ## f, iter, and delta are parameters that control the degree and method of smoothing
+  l1 <- as.data.frame(lowess(s1$dailysum, f = 1/20, iter = 3, delta = 4))
+  l2 <- as.data.frame(lowess(s2$dailysum, f = 1/20, iter = 3, delta = 4))
+  
+  ## Make a data frame that stores the lowess curves for each species
+  l  <- data.frame(day = l1$x, s1 = l1$y, s2 = l2$y)
+  
+  ## Plot
+  p <- ggplot(l, aes(x = day, y = max(s1, s2))) +
+    xlab("Day of year") + ylab("Number of calling frogs") +
+    geom_line(size = 2.5, colour = "darkorange", aes(x = day, y = s1, stat = "identity", position = "dodge")) +
+    geom_line(size = 2.5, colour = "blue4",      aes(x = day, y = s2, stat = "identity", position = "dodge")) +
+    geom_ribbon(aes(x = day, ymax = s1), ymin = 0, fill = "orangered", alpha = 0.5) +
+    geom_ribbon(aes(x = day, ymax = s2), ymin = 0, fill = "navy",     alpha = 0.5) +
+    theme(panel.border = element_rect(colour = "black", fill = NA, size = 1.5),
+          axis.text.y = element_text(size = 16),
+          axis.text.x = element_text(size = 16),
+          axis.title.y = element_text(size = 16),
+          axis.title.x = element_text(size = 16))
+  
+  print(p)
+}
+
+## Now, we can input any species pair and year to visualize
+## This is useful for spotchecking our analysis and providing a visual reference for the workflow
+overlapplot("RCL", "HV", 2007, 4) 
+```
+
+## Function to calculate overlap for every species pair
+
+Now, I want to calculate the overlap between each species pair for each year and at each pond. To do this, I built a function that 1) subsets the data by species, year, and pond 2) makes loess smoothed distributions of calling activity for each species through the year 3) calculates the integrated area of overlap between the two species. I then apply this function to all 132 pairings of species at each of 8 site and each of 15 years (not shown). 
+```{r, warning = F}
+
+## Build function to make matrix of overlap vs. predictors for all y-p-s
+
+overlapmatrix <- function(y, p, s1, s2) {
+  
+  ### GETTING OVERLAP
+  
+  ## Subset each species from daily calls data
+  of1 <- subset(daily, subset = (sp == s1 & year == y & pond == p))
+  of2 <- subset(daily, subset = (sp == s2 & year == y & pond == p))
+  
+  ## Lowess function for each
+  lf1 <- lowess(of1$dailysum, f = 1/50, iter = 3, delta = 4)
+  lf2 <- lowess(of2$dailysum, f = 1/50, iter = 3, delta = 4)
+  
+  ## Calculate overlap
+  d     <- data.frame(day = lf1$x, frog1 = lf1$y, frog2 = lf2$y)
+  d$min <- pmin(d$frog1, d$frog2)
+  inter <- integrate.xy(d$day, d$min)
+  prop1 <- inter/integrate.xy(d$day, d$frog1)
+  prop2 <- inter/integrate.xy(d$day, d$frog2)
+  
+  ## Designate and return output
+  out <- cbind(prop1, prop2)
+  return(out)
+}
+
+```
+After running the function through all species and years, the result is a dataframe with the proportional overlap for each species pair in each year and pond in which both species were present. There are two overlap values because this was standardized relative to the absolute size of each species distribution.
+```{r, echo = F, warning = F}
+all$startdiff <- NULL
+all$meddiff   <- NULL
+head(all)
+
+```
+
+## Overlap trend across years
+
+Now, I want to see how the area of overlap changes across years for each species pair. To do this, I built a custom function that 1) subsets the dataframe built above by species pair and pond 2) runs a linear model of overlap predicted by year 3) returns model diagnostics. I then apply this function to all 132 pairings of species and 8 ponds (not shown)
+
+```{r, warning = F}
+overlaptrend <- function(sp, p) {
+  
+  ## Subset each species-pond
+  s <- subset(fall, spsp == sp & pond == p)
+  
+  ## Linear model
+  l  <- lm(overlap ~ year, data = s)
+  ls <- summary(l) 
+  
+  ## Extract regression coefficient
+  c  <- round(coef(l)[2], 3)             # regression slope
+  r  <- round(ls$r.squared, 3)           # r-squared
+  pv <- round(ls$coefficients[2, 4], 3)  # p-value
+  
+  ## Output
+  out <- cbind(sp, p, c, r, pv)
+  return(out)
+}
+
+```
+
+## Plotting all results
+Now, we want to see how overlap changes across years for each species pair. This plot shows the regressions for each year, but it's super hard to read and ugly. In this figure, each color represents a species pair. The slope of the line indicates how the overlap in calling between that species pair changed across the 15 year period of this data. Positive slopes indicate that overlap increased, negative slopes indicate that overlap decreased.
+```{r, echo = F, warning = F}
+oy <- ggplot(fall, aes(x = year, y = overlap, color = factor(spsp))) + 
+  geom_point(size = 4, alpha = 0.25) +
+  stat_smooth(method = lm, size = 2, se = F) +
+  labs(color = "species pair") +
+  theme(panel.border = element_rect(colour = "black", fill = NA, size = 1.5)) +
+  ylab("Overlap in calling phenology") + xlab("Year")
+oy
+```
+The info we really want from this figure is the slope of the line and the amount of error around that slope (from replicate ponds). This figure gives exactly that. Here, each row represents a species pair. Black points represent the average regression slope (pictured above) with error from pond replicates. Colored points represent the regression slope for each pond
+```{r}
+
+over_year$spsp = with(over_year, factor(spsp, levels = rev(levels(spsp))))
+
+## Overlap trend over years for each spsp-p
+oy <- ggplot(over_year, aes(x = coef, y = reorder(spsp, coef))) + mytheme +
+  
+  ## Ponds shown independently
+  geom_point(size = 3, alpha = 0.75, aes(color = as.factor(pond))) + 
+  
+  ## Average of all 8 ponds
+  geom_point(size = 4, colour = "black", shape = 18,
+             data = over_year_err, aes(x = coef, y = spsp)) + 
+  
+  ## SE bars on averages
+  geom_errorbarh(data = over_year_err, size = 1, aes(xmin = coef - se, xmax = coef + se, height = 0)) +
+
+  ## Style elements
+  theme(legend.background = element_rect(size = 1, colour = "black"),
+        panel.border = element_rect(colour = "black", fill = NA, size = 2),
+        axis.text.y = element_text("mono", size = 12),
+        axis.text.x = element_text(size = 15),
+        legend.position = c(0.1, 0.85),
+        axis.title.x = element_text(size = 13),
+        axis.title.y = element_text(size = 15)) +
+  geom_hline(yintercept = seq(0.5, 48.5, 1), color = "lightgray", linetype = 2) +
+  geom_vline(size = 1.5, linetype = 2,  xintercept = 0) +
+  xlab("Regression slope \n(numerical overlap ~ year)") + ylab("Species pair") + labs(color = 'pond') +
+  ## Add a Wes Anderson color palette for extra fun
+  scale_color_manual(values = wes_palette(n = 8, name = "Zissou1", type = 'continuous'))
+
+#oy <- ggMarginal(oy, size = 7, margins = "x", type = "histogram",
+#                 col = "black", fill = "black", alpha = 0.75)
+oy
+```
+
