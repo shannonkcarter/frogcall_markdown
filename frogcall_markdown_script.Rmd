@@ -2,7 +2,7 @@
 title: "Frog Breeding Responses to Climate Change"
 author: "Shannon Carter"
 date: "February 19, 2019"
-output: html_document
+output: pdf_document
 ---
 
 Climate change shifts plants' and animals' seasonal schedules, because events like breeding, migration, and metamorphosis are timed by climate cues. Here, I examine this response in populations of frogs in East Texas. 20 years ago, a collaborator in the USDA installed audio recorders in 8 ponds in East Texas. These recorders are programmed to record 6 times daily, capturing the breeding calls of frogs at the ponds. I've analyzed this data in R to measure if/how frog breeding timing is shifting and how this will affect frogs' interactions with each other. I was the lead author on this project, meaning I conceptualized the questions, performed all data management and analysis, and interpreted and wrote up results for publication. This RMarkdown document provides a summary of the analysis for one of the two major questions for this project. For more information, please feel free to contact me at skcarter25@gmail.com or see the full publication in [Ecology Letters](https://shannonkcarter.weebly.com/uploads/1/2/2/1/122153528/cartersaenzrudolf_ele2018.pdf).
@@ -124,7 +124,7 @@ overlapplot <- function(s1, s2, y, p) {
   l  <- data.frame(day = l1$x, s1 = l1$y, s2 = l2$y)
   
   ## Plot
-  p <- ggplot(l, aes(x = day, y = max(s1, s2))) +
+  p <- ggplot(l, aes(x = day, y = s1)) +
     geom_line(aes(x = day, y = s1, stat = "identity", position = "dodge"),
               size = 2.5, colour = "#F28335") +
     geom_line(aes(x = day, y = s2, stat = "identity", position = "dodge"),
@@ -150,6 +150,8 @@ overlapplot("RCL", "HV", 2007, 4)
 ## Function to calculate overlap for every species pair
 
 Now, I want to calculate the area of intersection between species calling distributions (depicted above), but for all the species and all the years and all the ponds. To do this, I wrote a custom function that 1) subsets the data by species, year, and pond 2) makes lowess smoothed distributions of calling activity for each species 3) calculates the integrated area of intersection between the two species' lowess distributions. I then apply this function to all 132 pairings of species at each of the 8 sites and for each of the 17 years. 
+
+User-written functions like this are a really powerful element of R! In analyzing this dataset, I built a number of custom functions as pipelines to perform calculations, plotting, and analysis on iterative slices of data. Without functions, managing analysis was totally unwieldy. Any upstream change to the data or my analysis would render all subsequent parts broken and I'd have to tediously retweak everything. Discovering and learning to build functions was a lifesaver. What initially took place in several separate steps— subsetting data, processing data, calculating key metrics, statistical models, and plotting— was now integrated into the same reproducible pipeline that could be easily be adjusted. By mastering functions, I was able to do rigorous model selection quickly and efficiently because changing model formulation was as simple as changing 1 line in the function and re-applying the function to the data.
 ```{r, warning = F}
 
 ## The function take 4 inputs: year, pond, species 1 and species 2 
@@ -207,11 +209,12 @@ oy_scatter
 
 ```
 
-The info we really want from this figure is the slope of each line and the amount of error around that slope (from replicate ponds). The following figure gives exactly that and is much easier to interpret. Here, each row represents a species pair. Black points represent the average regression slope with error from pond replicates. Colored points represent the regression slope for each pond. Points that are positive indicate overlap increased across years. Points that are negative indicate that overlap decreased across years
+The info we really want from this figure is the slope of each line and the amount of error around that slope (from replicate ponds). The following figure gives exactly that and is much easier to interpret and better looking. ggplot is great because it allows you to build a plot from multiple data sources and offers endless customization ability. Here, each row represents a species pair. Black points represent the average regression slope with error from pond replicates. Colored points represent the regression slope for each pond. Points that are positive indicate overlap increased across years. Points that are negative indicate that overlap decreased across years. 
 
 ```{r, warning = F, fig.height = 8, fig.width = 6, fig.align = 'center'}
 
 ## Overlap trend over years for each species pair
+## Reorder species based on the magnitude of the coef so it's easier to read
 oy <- ggplot(over_year, aes(x = coef, y = reorder(spsp, coef))) + mytheme +
   
   ## Ponds shown independently
@@ -252,7 +255,12 @@ oy <- ggplot(over_year, aes(x = coef, y = reorder(spsp, coef))) + mytheme +
 ## Add a marginal histogram so it's easier to see the overall pattern
 oy <- ggMarginal(oy, size = 7, margins = "x", type = "histogram",
                  col = "black", fill = "black", alpha = 0.75)
+```
+
+A lot of data and a lot of coding went into this figure, and it was therefore a challenge to keep the design clean and elegant. I put a lot of thought into what the key messages were and simplified wherever possible. I'm very proud of the end result! The final paper had four figures that looked just like this, but measuring different trends and models. The consistent figure design helped readers process the information more quickly and make comparisons across different components of the paper. This paper got accepted to the top jounal in my field, a distinction I largely attribute to the effort and thought that went into these figures.   
+```{r, echo = F, warning = F, fig.height = 8, fig.width = 6, fig.align = 'center'}
 oy
 ```
 
-Here, we can see that most points are positive and the marginal histogram is right skewed. This means that it was common for frogs to increase their overlap in breeding through the 17 year period we measured. We suspect this is a result of climate change. Typically, frogs try to partition their breeding in time. But most species can only breed (and therefore they only call) when it's raining. In this region, climate change has resulted in long periods of dry with rare but large rain events. This forces frogs to cluster their calling around these few rain opportunities. The outcome is greater competition for the resulting offspring, which should reduce survival over times.rstudio test
+
+Here, we can see that most points are positive and the marginal histogram is right skewed. This means that it was common for frogs to increase their overlap in breeding through the 17 year period we measured. We suspect this is a result of climate change. Typically, frogs try to partition their breeding in time. But most species can only breed (and therefore they only call) when it's raining. In this region, climate change has resulted in long periods of dry with rare but large rain events. This forces frogs to cluster their calling around these few rain opportunities. The outcome is greater competition for the resulting offspring, which should reduce survival over times.
