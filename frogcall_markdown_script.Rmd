@@ -5,7 +5,7 @@ date: "February 19, 2019"
 output: html_document
 ---
 
-Climate change shifts plants' and animals' seasonal schedules, because events like breeding, migration, and metamorphosis are timed by climate cues. Here, I examine this response in populations of frogs in East Texas. 20 years ago, a collaborator in the USDA installed audio recorders in 8 ponds in East Texas. These recorders are programmed to record 6 times daily, capturing the breeding calls of frogs at the ponds. I've analyzed this data in R to measure if/how frog breeding timing is shifting and how this will affect frogs' interactions with each other. I was the lead author on this project, meaning I conceptualized the questions, performed all data management and analysis, and interpreted and wrote up results for publication. This RMarkdown document provides a summary of the analysis for one of the two major questions for this project. For more information, please feel free to contact me at skcarter25@gmail.com or see the full publication in [Ecology Letters](https://shannonkcarter.weebly.com/uploads/1/2/2/1/122153528/cartersaenzrudolf_ele2018.pdf).
+Climate change shifts plants' and animals' seasonal schedules, because events like breeding, migration, and metamorphosis are timed by climate cues. Here, I examine this response in populations of frogs in East Texas. 20 years ago, a collaborator in the USDA installed audio recorders in 8 ponds in East Texas. These recorders are programmed to record 6 times daily, capturing the breeding calls of frogs at the ponds. I've analyzed this data in R to measure if/how frog breeding timing is shifting and how this will affect frogs' interactions with each other. I was the lead author on this project, meaning I conceptualized the questions, performed all data management and analysis, and interpreted and wrote up results for publication. This document provides a summary of the analysis for one of the two major questions for this project. For more information, please feel free to contact me at skcarter25@gmail.com or see the full publication in [Ecology Letters](https://shannonkcarter.weebly.com/uploads/1/2/2/1/122153528/cartersaenzrudolf_ele2018.pdf).
 
 ```{r setup, include = F}
 knitr::opts_chunk$set(echo = TRUE)
@@ -51,8 +51,6 @@ p8 <- read.csv("CallingDataPond8.csv")
 over_year <- read.csv("over_year.csv")
 all <- read.csv("filtered_all.csv")
 over_year_err <- read.csv("over_year_err.csv")
-
-
 
 ```
 
