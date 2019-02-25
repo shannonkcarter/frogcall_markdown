@@ -2,16 +2,17 @@
 title: "Frog Breeding Responses to Climate Change"
 author: "Shannon Carter"
 date: "February 19, 2019"
-output: pdf_document
+output: html_document
 ---
 
 Climate change shifts plants' and animals' seasonal schedules, because events like breeding, migration, and metamorphosis are timed by climate cues. Here, I examine this response in populations of frogs in East Texas. 20 years ago, a collaborator in the USDA installed audio recorders in 8 ponds in East Texas. These recorders are programmed to record 6 times daily, capturing the breeding calls of frogs at the ponds. I've analyzed this data in R to measure if/how frog breeding timing is shifting and how this will affect frogs' interactions with each other. I was the lead author on this project, meaning I conceptualized the questions, performed all data management and analysis, and interpreted and wrote up results for publication. This RMarkdown document provides a summary of the analysis for one of the two major questions for this project. For more information, please feel free to contact me at skcarter25@gmail.com or see the full publication in [Ecology Letters](https://shannonkcarter.weebly.com/uploads/1/2/2/1/122153528/cartersaenzrudolf_ele2018.pdf).
 
 ```{r setup, include = F}
 knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir = "C:\\Users\\Shannon\\Desktop\\GitHub Repos\\frogcall_markdown")
 
 ## Set working directory and clear memory
-setwd("C:\\Users\\Shannon\\Dropbox\\Phenology field data_Dan\\east TX frog call sampling\\shannons_script")
+setwd("C:\\Users\\Shannon\\Desktop\\GitHub Repos\\frogcall_markdown")
 rm(list = ls(all = T))
 
 ## Load required packages
@@ -47,23 +48,11 @@ p6 <- read.csv("CallingDataPond6.csv")
 p7 <- read.csv("CallingDataPond7.csv")
 p8 <- read.csv("CallingDataPond8.csv")
 
-## UNFILTERED ALL SP OVERLAP MATRIX
-all <- read.csv("overmat.csv")
+over_year <- read.csv("over_year.csv")
+all <- read.csv("filtered_all.csv")
+over_year_err <- read.csv("over_year_err.csv")
 
-## FILTERED SP OVERLAP MATRIX
-fall <- read.csv("filtered_all.csv", header = T)
-fall$pond <- as.factor(fall$pond)
 
-## PHENOLOGY ~ YEAR: ALL REGRESSION MODELS
-start_year <- read.csv("start_year.csv", header = T)       ## START ~ YEAR
-over_year  <- read.csv("over_year.csv", header = T)        ## OVERLAP ~ YEAR
-start_year_re <- read.csv("start_year_re.csv", header = T) ## START ~ YEAR; POND AS RE
-over_year_re  <- read.csv("over_year_re.csv", header = T)  ## OVERLAP ~ YEAR; POND AS RE
-med_year_re   <- read.csv("med_year_re.csv", header = T)   ## MEDIAN ~ YEAR; POND AS RE
-
-## PHENOLOGY ~ YEAR: REGRESSION MODELS WITH MEANS/SE
-start_year_err <- read.csv("start_year_err.csv",  header = T) ## START ~ YEAR
-over_year_err  <- read.csv("over_year_err.csv", header = T)   ## OVERLAP ~ YEAR
 
 ```
 
@@ -116,7 +105,7 @@ daily[15048:15055,]
 ## Visualizing the raw data
 
 The above dataset gives time series for the calling behavior of each frog species. Using lowess functions, I can transform the time series into smooth distributions. This makes it easier to visualize when the frogs are active through the year and also enables quantification. Here's an example of those distributions for the gray tree frog (in orange) and the green frog (in teal) in 2007 at pond 4. The major objective of this project was to calculate how the area of overlap (visible in the plot at the area where the orange and teal distributions intersect) changed across years for pairwise combinations of species. This would tell us if climate change-driven shifts in breeding timing influence the competition between species. 
-```{r, echo = F, warning = F}
+```{r, echo = F, warning = F, fig.align = 'center'}
 
 ## The function takes four inputs: year, pond, species 1, and species 2
 
@@ -206,9 +195,9 @@ head(all)
 ## Plotting all results
 
 Now, we want to see how overlap between species temporal distributions changes across years for each species pair. This plot shows the regressions for each year, but it's super hard to read and ugly. In this figure, each color represents a species pair. The slope of the line indicates how the overlap in calling between that species pair changed across the 15 year period of this data. Positive slopes indicate that overlap increased, negative slopes indicate that overlap decreased.
-```{r, echo = F, warning = F}
+```{r, echo = F, warning = F, fig.align = 'center'}
 
-oy_scatter <- ggplot(fall, aes(x = year, y = overlap, color = factor(spsp))) + 
+oy_scatter <- ggplot(all, aes(x = year, y = overlap, color = factor(spsp))) + 
   geom_point(size = 4, alpha = 0.25) +
   stat_smooth(method = lm, size = 2, se = F) +
   labs(color = "species pair") +
@@ -220,7 +209,7 @@ oy_scatter
 
 The info we really want from this figure is the slope of each line and the amount of error around that slope (from replicate ponds). The following figure gives exactly that and is much easier to interpret. Here, each row represents a species pair. Black points represent the average regression slope with error from pond replicates. Colored points represent the regression slope for each pond. Points that are positive indicate overlap increased across years. Points that are negative indicate that overlap decreased across years
 
-```{r, warning = F, fig.height = 7.5, fig.width = 5.5}
+```{r, warning = F, fig.height = 8, fig.width = 6, fig.align = 'center'}
 
 ## Overlap trend over years for each species pair
 oy <- ggplot(over_year, aes(x = coef, y = reorder(spsp, coef))) + mytheme +
@@ -249,11 +238,8 @@ oy <- ggplot(over_year, aes(x = coef, y = reorder(spsp, coef))) + mytheme +
   theme(panel.border = element_rect(colour = "black", fill = NA, size = 2),
         axis.text.y = element_text("mono", size = 12),
         axis.text.x = element_text(size = 15),
-        legend.position = c(0.05, 0.83),
         axis.title.x = element_text(size = 13),
-        axis.title.y = element_text(size = 15),
-        legend.background = element_blank(),
-        legend.box.background = element_rect(colour = "black")) +
+        axis.title.y = element_text(size = 15)) +
   
   ## Labels for axes and legend
   labs(x = "Regression slope \n(numerical overlap ~ year)", 
