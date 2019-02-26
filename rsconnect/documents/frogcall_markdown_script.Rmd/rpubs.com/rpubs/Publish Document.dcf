@@ -1,0 +1,10 @@
+name: Publish Document
+title:
+username:
+account: rpubs
+server: rpubs.com
+hostUrl: rpubs.com
+appId: https://api.rpubs.com/api/v1/document/470971/0fdd9092c9f545459bdad764b7f1203d
+bundleId: https://api.rpubs.com/api/v1/document/470971/0fdd9092c9f545459bdad764b7f1203d
+url: http://rpubs.com/shannon_carter/470971
+when: 1551212185.11438
