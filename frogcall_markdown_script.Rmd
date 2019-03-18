@@ -2,7 +2,12 @@
 title: "Frog Breeding Responses to Climate Change"
 author: "Shannon Carter"
 date: "February 19, 2019"
-output: html_document
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    theme: united
+    highlight: tango 
 ---
 
 Climate change shifts plants' and animals' seasonal schedules, because events like breeding, migration, and metamorphosis are timed by climate cues. Here, I examine this response in populations of frogs in East Texas. 20 years ago, a collaborator in the USDA installed audio recorders in 8 ponds in East Texas. These recorders are programmed to record 6 times daily, capturing the breeding calls of frogs at the ponds. I've analyzed this data in R to measure if/how frog breeding timing is shifting and how this will affect frogs' interactions with each other. I was the lead author on this project, meaning I conceptualized the questions, performed all data management and analysis, and interpreted and wrote up results for publication. This document provides a summary of the analysis for one of the two major questions for this project. For more information, please feel free to contact me at skcarter25@gmail.com or see the full publication in [Ecology Letters](https://shannonkcarter.weebly.com/uploads/1/2/2/1/122153528/cartersaenzrudolf_ele2018.pdf).
@@ -54,7 +59,7 @@ over_year_err <- read.csv("over_year_err.csv")
 
 ```
 
-## Process and tidy raw data
+## Process and Tidy Raw Data
 We have 8 raw data files, each representing 1 pond. Each row represents one time point (6 per day from May 2000 through Dec. 2018) and includes the number of calls made by 12 species of frogs (in columns).
 ```{r, echo = F, warning = F}
 p1test <- p1
@@ -100,7 +105,7 @@ daily[15048:15055,]
 
 ```
 
-## Visualizing the raw data
+## Visualize Raw Data
 
 The above dataset gives time series for the calling behavior of each frog species. Using lowess functions, I can transform the time series into smooth distributions. This makes it easier to visualize when the frogs are active through the year and also enables quantification. Here's an example of those distributions for the gray tree frog (in orange) and the green frog (in teal) in 2007 at pond 4. The major objective of this project was to calculate how the area of overlap (visible in the plot at the area where the orange and teal distributions intersect) changed across years for pairwise combinations of species. This would tell us if climate change-driven shifts in breeding timing influence the competition between species. 
 ```{r, echo = F, warning = F, fig.align = 'center'}
@@ -145,7 +150,7 @@ overlapplot <- function(s1, s2, y, p) {
 overlapplot("RCL", "HV", 2007, 4) 
 ```
 
-## Function to calculate overlap for every species pair
+## Process Data
 
 Now, I want to calculate the area of intersection between species calling distributions (depicted above), but for all the species and all the years and all the ponds. To do this, I wrote a custom function that 1) subsets the data by species, year, and pond 2) makes lowess smoothed distributions of calling activity for each species 3) calculates the integrated area of intersection between the two species' lowess distributions. I then apply this function to all 132 pairings of species at each of the 8 sites and for each of the 17 years. 
 
@@ -192,9 +197,10 @@ head(all)
 
 ```
 
-## Plotting all results
+## Figures
 
 Now, we want to see how overlap between species temporal distributions changes across years for each species pair. This plot shows the regressions for each year, but it's super hard to read and ugly. In this figure, each color represents a species pair. The slope of the line indicates how the overlap in calling between that species pair changed across the 15 year period of this data. Positive slopes indicate that overlap increased, negative slopes indicate that overlap decreased.
+
 ```{r, echo = F, warning = F, fig.align = 'center'}
 
 oy_scatter <- ggplot(all, aes(x = year, y = overlap, color = factor(spsp))) + 
