@@ -34,14 +34,17 @@ library(lme4)
 library(lmerTest)
 library(cowplot)
 library(wesanderson)
+library(extrafont)
 
 ## Load universal plotting elements
-mytheme <- theme(panel.background = element_blank(),
-                 panel.grid.minor = element_blank(), 
-                 panel.grid.major = element_blank(),
-                 axis.text  = element_text(size = rel(1.7),colour = "black"),
-                 axis.title = element_text(size = rel(2.0)),
-                 axis.line  = element_line(colour = "black"))
+## Load universal plotting elements
+mytheme <- theme_bw(base_size = 15, base_family = "Franklin Gothic Medium") +
+  theme(legend.text = element_text(size = 10),
+        legend.title = element_text(size = 11),
+        text = element_text(size = 14),     
+        axis.title = element_text(size = 12),
+        axis.text  = element_text(size = 10, family = "Consolas"),
+        panel.grid = element_blank())
 
 ## RAW DATA
 p1 <- read.csv("CallingDataPond1.csv")
@@ -98,7 +101,7 @@ daily <- as.data.frame(daily)
 
 ```
 
-The result is a tidy long format data set with one observation per row
+The result is a tidy long format data set with one observation per row.
 
 ```{r, echo = F}
 daily[15048:15055,]
@@ -203,7 +206,7 @@ Now, we want to see how overlap between species temporal distributions changes a
 
 ```{r, echo = F, warning = F, fig.align = 'center'}
 
-oy_scatter <- ggplot(all, aes(x = year, y = overlap, color = factor(spsp))) + 
+oy_scatter <- ggplot(all, aes(x = year, y = overlap, color = factor(spsp))) + mytheme +
   geom_point(size = 4, alpha = 0.25) +
   stat_smooth(method = lm, size = 2, se = F) +
   labs(color = "species pair") +
@@ -242,11 +245,11 @@ oy <- ggplot(over_year, aes(x = coef, y = reorder(spsp, coef))) + mytheme +
   geom_vline(xintercept = 0, size = 1, linetype = 2) +
   
   ## Style elements
-  theme(panel.border = element_rect(colour = "black", fill = NA, size = 2),
-        axis.text.y = element_text("mono", size = 12),
-        axis.text.x = element_text(size = 15),
-        axis.title.x = element_text(size = 13),
-        axis.title.y = element_text(size = 15)) +
+  theme(panel.border = element_rect(colour = "black", fill = NA, size = 2)) +
+        #axis.text.y = element_text("mono", size = 12),
+        #axis.text.x = element_text(size = 15),
+        #axis.title.x = element_text(size = 13),
+        #axis.title.y = element_text(size = 15)) +
   
   ## Labels for axes and legend
   labs(x = "Regression slope \n(numerical overlap ~ year)", 
