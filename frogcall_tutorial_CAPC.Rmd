@@ -3,16 +3,13 @@ title: "Figure Design Tutorial"
 author: "Shannon Carter"
 date: "July 2, 2019"
 output: 
-  html_document:
+  pdf_document:
     toc: true
-    toc_float: true
-    theme: united
     highlight: tango 
 ---
 ## Purpose
 
-Creating effective data visuals is key for communicating your science clearly and getting attention for your work. Here, I walk through the process of making one of the main figure for my paper in [Ecology Letters](https://shannonkcarter.weebly.com/uploads/1/2/2/1/122153528/cartersaenzrudolf_ele2018.pdf). I'm very proud of this paper! It got accepted to the top jounal in my field, a distinction I largely attribute to the effort and thought that went into these figures.
-
+Creating effective data visuals is key for communicating science clearly. Here, I walk through the process of making one of the main figures for my paper in [Ecology Letters](https://shannonkcarter.weebly.com/uploads/1/2/2/1/122153528/cartersaenzrudolf_ele2018.pdf). I'm very proud of this paper! It got accepted to the top jounal in my field, a distinction I largely attribute to the effort I put into conceptualizing and designing these figures.
 
 ## Research Background
 
@@ -27,30 +24,19 @@ setwd("C:\\Users\\Shannon\\Desktop\\GitHub Repos\\frogcall_markdown")
 rm(list = ls(all = T))
 
 ## Load required packages
-#library(car)
 library(tidyverse)
-#library(multcomp)
-#library(reshape2)
-#library(sfsmisc)
-#library(RColorBrewer)
 library(ggExtra)
 library(lubridate)
-#library(lattice)
-#library(gridExtra)
-#library(lme4)
-#library(lmerTest)
-#library(cowplot)
 library(wesanderson)
 library(extrafont)
 
 ## Load universal plotting elements
-## A custom ggtheme elevates your figure by breaking from commonplace defaults, cleaning the design, and giving an overall aesthetically pleasing look. This theme removes cluttering gridlines and background panels, and gives clean fonts in easily legible sizes.
-mytheme <- theme_bw(base_size = 15, base_family = "Franklin Gothic Medium") +
+mytheme <- theme_bw(base_size = 15) + #, base_family = "Franklin Gothic Medium") +
   theme(legend.text = element_text(size = 10),
         legend.title = element_text(size = 11),
         text = element_text(size = 14),     
         axis.title = element_text(size = 12),
-        axis.text  = element_text(size = 10, family = "Consolas"),
+        axis.text  = element_text(size = 10), #, family = "Consolas"),
         panel.grid = element_blank())
 
 ## RAW DATA
@@ -78,12 +64,12 @@ p1test$DATE <- NULL
 head(p1test)
 ```
 
-Here, I merge the data frames for the eight ponds, melt to long format, sum the six daily observations, and adjust time & date format.
+Here, I merge the data frames for the eight ponds, melt to long format, sum the six daily observations, and adjust time & date format. The result is a tidy data frame. Each row represents the number of calls in a day for a particular species.
 ```{r, echo = T, results = 'hide', warning = F}
 
 ## Stack raw data into one df
 all_ponds <- rbind(p1, p2, p3, p4, p5, p6, p7, p8)
-all_ponds <- subset(all_ponds, subset = (YEAR != 2000))  # 2000 is an incomplete year, so we drop it
+all_ponds <- subset(all_ponds, subset = (YEAR != 2000))
 
 ## Gather species to long format, adjust time/date formats, and rename columns
 all_ponds_long <- all_ponds %>% 
@@ -99,29 +85,41 @@ daily_calls <- all_ponds_long %>%
 
 ```
 
-The result is a tidy long format data set. Each row represents the number of calls in a day for a particular species at a particular pond.
-
 ```{r, echo = F}
-daily_calls[15048:15055,]
-
+daily_calls[15051:15055,]
 ```
 
 ## Visualize Raw Data
+The above dataset gives time series for the calling behavior of each frog species. It's a lot of data! Even just looking at one year and one pond, it's difficult to make sense of the patterns of species abundance in this figure. We need a visualization that smoothes over some of the noise and highlights particular questions or comparisons needed for the planned analyses.
 
-The above dataset gives time series for the calling behavior of each frog species. Using lowess functions, I can transform the time series into smooth distributions. This makes it easier to visualize when the frogs are active through the year and also enables quantification. Here's an example of those distributions for the gray tree frog (in orange) and the green frog (in teal) in 2007 at pond 4. The major objective of this project was to calculate how the area of overlap (visible in the plot at the area where the orange and teal distributions intersect) changed across years for pairwise combinations of species. This would tell us if climate change-driven shifts in breeding timing influence the competition between species. 
+```{r, echo = F, warning = F, fig.align = 'center', fig.height = 3.25}
+ex <- ggplot(subset(daily_calls, subset = (year == 2007 & pond == 4)), 
+              aes(x = doy, y = dailysum, color = sp)) + mytheme +
+  geom_point() + geom_line() +
+  labs(x = "day of year", 
+       y = "number of calling frogs", 
+       color = "species",
+       title = "Calling patterns of a frog community",
+       subtitle = "Year 2007, Pond 4")
+ex
+```
+
+One thing that makes the above figure difficult to read is that the data jumps around a lot. Using lowess functions, I can transform the time series into smooth distributions. This makes it easier to visualize when the frogs are active through the year and also enables quantification. 
+
+Another problem is that 12 species is just too much to present in one figure. You can't tell the species apart because the color scheme is bad and the data overlaps. The major questions of this project deals with pairwise comparisons between species. So let's focus our visualizations on 2 species at a time.
+
+The resulting figure (below) presents the same data as the figure above, but focused just on 2 of the 12 species. The result is much cleaner and, importantly, is closely related to the conceptual questions of the project. The major objective of this project was to calculate how the area of overlap (visible in the plot at the area where the orange and teal distributions intersect) changed across years for pairwise combinations of species. This would tell us if climate change-driven shifts in breeding timing influence the competition between species. 
+
+I made a function to allow me to quickly generate the figure below for any species, year, and pond. I use these to spotcheck analysis and provide a visual reference for my workflow.
+
 ```{r, echo = F, warning = F, fig.align = 'center'}
-
-all <- ggplot(daily_calls, aes(x = doy, y = dailysum, color = sp)) + 
-  geom_point() + mytheme +
-  facet_wrap(~ year)
-all
 
 ## The function takes four inputs: year, pond, species 1, and species 2
 overlapplot <- function(s1, s2, y, p) {
   
   ## Subset year and pond of interest for each species
-  s1 <- subset(daily, subset = (sp == s1 & year == y & pond == p))
-  s2 <- subset(daily, subset = (sp == s2 & year == y & pond == p))
+  s1 <- subset(daily_calls, subset = (sp == s1 & year == y & pond == p))
+  s2 <- subset(daily_calls, subset = (sp == s2 & year == y & pond == p))
   
   ## Run lowess functions-- this smoothes the time series data into a distribution
   ## f, iter, and delta are parameters that control the degree and method of smoothing
@@ -139,7 +137,10 @@ overlapplot <- function(s1, s2, y, p) {
               size = 1.5, colour = "#489C92") +
     geom_ribbon(aes(x = day, ymax = s1), ymin = 0, fill = "#F28335", alpha = 0.75) +
     geom_ribbon(aes(x = day, ymax = s2), ymin = 0, fill = "#489C92", alpha = 0.75) +
-    labs(x = "day of year", y = "number of calling frogs")
+    labs(x = "day of year", 
+         y = "number of calling frogs", 
+         title = "Calling patterns of the green frog and gray tree frog",
+         subtitle = "Year 2007, Pond 4")
 
   print(p)
 }
@@ -151,7 +152,13 @@ overlapplot("RCL", "HV", 2007, 4)
 
 ## Process Data
 
-Now, I want to calculate the area of intersection between species calling distributions (depicted above), but for all the species and all the years and all the ponds. To do this, I wrote a custom function that 1) subsets the data by species, year, and pond 2) makes lowess smoothed distributions of calling activity for each species 3) calculates the integrated area of intersection between the two species' lowess distributions. I then apply this function to all 132 pairings of species at each of the 8 sites and for each of the 17 years. 
+Now, I want to calculate the area of intersection between species calling distributions (depicted above as the area where the teal and orange distributions overlap), but for all the species and all the years and all the ponds. To do this, I wrote a custom function that:
+
+1) subsets the data by species, year, and pond 
+2) makes lowess smoothed distributions of calling activity for each species, and 
+3) calculates the integrated area of intersection between the two species' lowess distributions
+
+I then apply this function to all 132 pairings of species at each of the 8 sites and for each of the 17 years. 
 
 User-written functions like this are a really powerful element of R! In analyzing this dataset, I built a number of custom functions as pipelines to perform calculations, plotting, and analysis on iterative slices of data. Without functions, managing analysis was totally unwieldy. Any upstream change to the data or my analysis would render all subsequent parts broken and I'd have to tediously retweak everything. Discovering and learning to build functions was a lifesaver. What initially took place in several separate steps— subsetting data, processing data, calculating key metrics, statistical models, and plotting— was now integrated into the same reproducible pipeline that could be easily be adjusted. By mastering functions, I was able to do rigorous model selection quickly and efficiently because changing model formulation was as simple as changing 1 line in the function and re-applying the function to the data.
 ```{r, warning = F}
@@ -161,11 +168,11 @@ User-written functions like this are a really powerful element of R! In analyzin
 overlapmatrix <- function(y, p, s1, s2) {
   
   ## Subset each species, year and pond from daily calls data
-  of1 <- subset(daily, subset = (sp == s1 & year == y & pond == p))
-  of2 <- subset(daily, subset = (sp == s2 & year == y & pond == p))
+  of1 <- subset(daily_calls, subset = (sp == s1 & year == y & pond == p))
+  of2 <- subset(daily_calls, subset = (sp == s2 & year == y & pond == p))
   
   ## Run lowess functions-- this smoothes the time series data into a distribution
-  ## f, iter, and delta are parameters that control the degree and method of smoothing
+  # f, iter, and delta are parameters that control the degree and method of smoothing
   lf1 <- lowess(of1$dailysum, f = 1/50, iter = 3, delta = 4)
   lf2 <- lowess(of2$dailysum, f = 1/50, iter = 3, delta = 4)
   
@@ -198,7 +205,7 @@ head(all)
 
 ## Figures
 
-Now, we want to see how overlap between species temporal distributions changes across years for each species pair. This plot shows the regressions for each year, but it's super hard to read and ugly. In this figure, each color represents a species pair. The slope of the line indicates how the overlap in calling between that species pair changed across the 15 year period of this data. Positive slopes indicate that overlap increased, negative slopes indicate that overlap decreased.
+Now, we want to see how overlap between species temporal distributions changes across years for each species pair. This plot shows the regressions for each year, but it's super hard to read and ugly. In this figure, each color represents a species pair. The slope of the line indicates how the overlap in calling between that species pair changed across the 17 year period of this data. Positive slopes indicate that overlap increased, negative slopes indicate that overlap decreased.
 
 ```{r, echo = F, warning = F, fig.align = 'center'}
 
@@ -212,13 +219,12 @@ oy_scatter
 
 ```
 
-The info we really want from this figure is the slope of each line and the amount of error around that slope (from replicate ponds). The following figure gives exactly that and is much easier to interpret and better looking. ggplot is great because it allows you to build a plot from multiple data sources and offers endless customization ability. Here, each row represents a species pair. Black points represent the average regression slope with error from pond replicates. Colored points represent the regression slope for each pond. Points that are positive indicate overlap increased across years. Points that are negative indicate that overlap decreased across years. 
+The information we really want from this figure is the slope of each line and the amount of error around that slope (from replicate ponds). The following figure gives exactly that and is much easier to interpret and better looking. ggplot is great because it allows you to build a plot from multiple data sources and offers endless customization ability. Here, each row represents a species pair. Black points represent the average regression slope with error from pond replicates. Colored points represent the regression slope for each pond. Points that are positive indicate overlap increased across years. Points that are negative indicate that overlap decreased across years. The marginal histogram at the top shows the distribution of the points.
 
-```{r, warning = F, fig.height = 8, fig.width = 6, fig.align = 'center'}
+```{r, warning = F, fig.height = 7.5, fig.width = 6, fig.align = 'center'}
 
-## Overlap trend over years for each species pair
-## Reorder species based on the magnitude of the coef so it's easier to read
-oy <- ggplot(over_year, aes(x = coef, y = reorder(spsp, coef))) + mytheme +
+## Reorder species based on the magnitude of the regression slope so it's easier to read
+oy <- ggplot(over_year, aes(x = coef, y = reorder(spsp, coef))) + 
   
   ## Ponds shown independently
   geom_point(size = 3, alpha = 0.75, 
@@ -239,17 +245,14 @@ oy <- ggplot(over_year, aes(x = coef, y = reorder(spsp, coef))) + mytheme +
   ## Add a marker at 0 to show show the position where overlap stays constant across years
   ## Positive values indicate increasing overlap; negative indicates decreasing overlap
   geom_vline(xintercept = 0, size = 1, linetype = 2) +
-  
-  ## Style elements
+ 
+  ## Style elements. Mytheme is a custom theme I apply to all ggplots
   theme(panel.border = element_rect(colour = "black", fill = NA, size = 2)) +
-        #axis.text.y = element_text("mono", size = 12),
-        #axis.text.x = element_text(size = 15),
-        #axis.title.x = element_text(size = 13),
-        #axis.title.y = element_text(size = 15)) +
+  mytheme +
   
   ## Labels for axes and legend
-  labs(x = "Regression slope \n(numerical overlap ~ year)", 
-       y = "Species pair",
+  labs(x = "regression slope (numerical overlap ~ year)", 
+       y = "species pair",
        color = 'pond') +
   
   ## Add a Wes Anderson color palette for extra fun
@@ -260,10 +263,9 @@ oy <- ggMarginal(oy, size = 7, margins = "x", type = "histogram",
                  col = "black", fill = "black", alpha = 0.75)
 ```
 
-A lot of data and a lot of coding went into this figure, and it was therefore a challenge to keep the design clean and elegant. I put a lot of thought into what the key messages were and simplified wherever possible. I'm very proud of the end result! The final paper had four figures that looked just like this, but measuring different trends and models. The consistent figure design helped readers process the information more quickly and make comparisons across different components of the paper. This paper got accepted to the top jounal in my field, a distinction I largely attribute to the effort and thought that went into these figures.   
-```{r, echo = F, warning = F, fig.height = 8, fig.width = 6, fig.align = 'center'}
+A lot of data and a lot of code went into this figure, and it was therefore a challenge to keep the design clean and elegant. I put a lot of thought into what the key messages were and simplified wherever possible. I'm very proud of the end result! The final paper had four figures that looked just like this, but measuring different trends and models. The consistent figure design helped readers process the information more quickly and make comparisons across different components of the paper. This paper got accepted to the top jounal in my field, a distinction I largely attribute to the effort and thought that went into these figures.   
+```{r, echo = F, warning = F, fig.height = 7.5, fig.width = 6, fig.align = 'center'}
 oy
 ```
 
-
-Here, we can see that most points are positive and the marginal histogram is right skewed. This means that it was common for frogs to increase their overlap in breeding through the 17 year period we measured. We suspect this is a result of climate change. Typically, frogs try to partition their breeding in time. But most species can only breed (and therefore they only call) when it's raining. In this region, climate change has resulted in long periods of dry with rare but large rain events. This forces frogs to cluster their calling around these few rain opportunities. The outcome is greater competition for the resulting offspring, which should reduce survival over time.
+Here, we can see that most points are positive and the marginal histogram is right skewed. This means that it was common for frogs to increase their overlap in breeding through the 17 year period. We suspect this is a result of climate change. Typically, frogs try to partition their breeding in time. But most species can only breed when it's raining. In this region, climate change has resulted in long periods of dry with rare but large rain events. This forces frogs to cluster their calling around these few rain opportunities. The outcome is greater competition for the resulting offspring, which should reduce survival over time.
