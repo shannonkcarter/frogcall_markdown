@@ -27,23 +27,24 @@ setwd("C:\\Users\\Shannon\\Desktop\\GitHub Repos\\frogcall_markdown")
 rm(list = ls(all = T))
 
 ## Load required packages
-library(car)
+#library(car)
 library(tidyverse)
-library(multcomp)
-library(reshape2)
-library(sfsmisc)
-library(RColorBrewer)
+#library(multcomp)
+#library(reshape2)
+#library(sfsmisc)
+#library(RColorBrewer)
 library(ggExtra)
-library(lattice)
-library(gridExtra)
-library(lme4)
-library(lmerTest)
-library(cowplot)
+library(lubridate)
+#library(lattice)
+#library(gridExtra)
+#library(lme4)
+#library(lmerTest)
+#library(cowplot)
 library(wesanderson)
 library(extrafont)
 
 ## Load universal plotting elements
-## A custom ggtheme elevates your figure by breaking from commonplace defaults, cleaning the design, and giving an overall aesthetically pleasing look. This theme removes cluttering gridlines and background panels, gives clean fonts, including unicode font for axis text
+## A custom ggtheme elevates your figure by breaking from commonplace defaults, cleaning the design, and giving an overall aesthetically pleasing look. This theme removes cluttering gridlines and background panels, and gives clean fonts in easily legible sizes.
 mytheme <- theme_bw(base_size = 15, base_family = "Franklin Gothic Medium") +
   theme(legend.text = element_text(size = 10),
         legend.title = element_text(size = 11),
@@ -81,36 +82,27 @@ Here, I merge the data frames for the eight ponds, melt to long format, sum the 
 ```{r, echo = T, results = 'hide', warning = F}
 
 ## Stack raw data into one df
-p18 <- rbind(p1, p2, p3, p4, p5, p6, p7, p8)
-p18 <- p18[p18$YEAR != 2000 ,]   # 2000 is an incomplete year, so we drop it
+all_ponds <- rbind(p1, p2, p3, p4, p5, p6, p7, p8)
+all_ponds <- subset(all_ponds, subset = (YEAR != 2000))  # 2000 is an incomplete year, so we drop it
 
-## Melt to long format and rename columns
-mp18 <- melt(p18, id.vars = c("POND", "YEAR", "FROGTIME","FROGDATE"),
-             measure.vars = c("HV", "HC", "BV", "BW", "RCA", "RCL", 
-                              "RS", "GC", "PC", "PT", "AC", "RP")) # codes for 12 species
-names(mp18) <- c("pond", "year", "time", "date", "sp", "calls")
-
-## Adjust time variable
-time  <- paste(mp18$date, mp18$time)
-time1 <- strptime(time,"%m/%d/%Y %H:%M")
-time2 <- as.POSIXlt(time1)
-time3 <- as.Date(time2, "%m/%d/%Y %H:%M")
-mp18$time <- time3
-mp18$doy <- as.numeric(strftime(mp18$time, format = "%j"))  # adding a 'day of year'
-mp18 <- subset(mp18, select = c("pond", "year", "time","doy", "sp", "calls"))
+## Gather species to long format, adjust time/date formats, and rename columns
+all_ponds_long <- all_ponds %>% 
+  gather("HV", "HC", "BV", "BW", "RCA", "RCL", "RS", "GC", "PC", "PT", "AC", "RP",
+         key = "sp", value = "calls") %>% 
+  mutate(doy = yday(mdy(DATE))) %>% 
+  dplyr::select(year = YEAR, doy = doy, time = TIME, pond = POND, sp = sp, calls = calls)
 
 ## Sum all 6 daily observations and convert to df
-daily <- mp18 %>%
-  group_by(pond, year, time, doy, sp) %>%
+daily_calls <- all_ponds_long %>%
+  group_by(year, doy, pond, sp) %>%
   summarize(dailysum = sum(calls))
-daily <- as.data.frame(daily)
 
 ```
 
-The result is a tidy long format data set with one observation per row.
+The result is a tidy long format data set. Each row represents the number of calls in a day for a particular species at a particular pond.
 
 ```{r, echo = F}
-daily[15048:15055,]
+daily_calls[15048:15055,]
 
 ```
 
@@ -119,8 +111,12 @@ daily[15048:15055,]
 The above dataset gives time series for the calling behavior of each frog species. Using lowess functions, I can transform the time series into smooth distributions. This makes it easier to visualize when the frogs are active through the year and also enables quantification. Here's an example of those distributions for the gray tree frog (in orange) and the green frog (in teal) in 2007 at pond 4. The major objective of this project was to calculate how the area of overlap (visible in the plot at the area where the orange and teal distributions intersect) changed across years for pairwise combinations of species. This would tell us if climate change-driven shifts in breeding timing influence the competition between species. 
 ```{r, echo = F, warning = F, fig.align = 'center'}
 
-## The function takes four inputs: year, pond, species 1, and species 2
+all <- ggplot(daily_calls, aes(x = doy, y = dailysum, color = sp)) + 
+  geom_point() + mytheme +
+  facet_wrap(~ year)
+all
 
+## The function takes four inputs: year, pond, species 1, and species 2
 overlapplot <- function(s1, s2, y, p) {
   
   ## Subset year and pond of interest for each species
@@ -136,25 +132,19 @@ overlapplot <- function(s1, s2, y, p) {
   l  <- data.frame(day = l1$x, s1 = l1$y, s2 = l2$y)
   
   ## Plot
-  p <- ggplot(l, aes(x = day, y = s1)) +
+  p <- ggplot(l, aes(x = day, y = s1)) + mytheme +
     geom_line(aes(x = day, y = s1, stat = "identity", position = "dodge"),
-              size = 2.5, colour = "#F28335") +
+              size = 1.5, colour = "#F28335") +
     geom_line(aes(x = day, y = s2, stat = "identity", position = "dodge"),
-              size = 2.5, colour = "#489C92") +
+              size = 1.5, colour = "#489C92") +
     geom_ribbon(aes(x = day, ymax = s1), ymin = 0, fill = "#F28335", alpha = 0.75) +
     geom_ribbon(aes(x = day, ymax = s2), ymin = 0, fill = "#489C92", alpha = 0.75) +
-    theme(panel.border = element_rect(colour = "black", fill = NA, size = 1.5),
-          axis.text.y = element_text(size = 16),
-          axis.text.x = element_text(size = 16),
-          axis.title.y = element_text(size = 16),
-          axis.title.x = element_text(size = 16)) + 
-    xlab("Day of year") + ylab("Number of calling frogs")
-  
+    labs(x = "day of year", y = "number of calling frogs")
+
   print(p)
 }
 
-
-## Now, we can input any species pair and year to visualize
+## Now, I can input any species pair, year, and pond to visualize
 ## I use this to spotcheck analysis and provide a visual reference for the workflow
 overlapplot("RCL", "HV", 2007, 4) 
 ```
