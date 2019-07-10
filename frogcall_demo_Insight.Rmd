@@ -69,18 +69,15 @@ Here, using the tidyverse suite of R packages, I merge the data frames for the e
 
 ## Stack raw data into one df
 all_ponds <- rbind(p1, p2, p3, p4, p5, p6, p7, p8)
-all_ponds <- subset(all_ponds, subset = (YEAR != 2000))
+all_ponds <- subset(all_ponds, subset = (YEAR != 2000)) # 2000 is a partial year, so we drop it
 
-## Gather species to long format, adjust time/date formats, and rename columns
-all_ponds_long <- all_ponds %>% 
+## Gather species to long format, adjust time/date formats, rename columns, and sum 6 daily observations
+daily_calls <- all_ponds %>% 
   gather("HV", "HC", "BV", "BW", "RCA", "RCL", "RS", "GC", "PC", "PT", "AC", "RP",
          key = "sp", value = "calls") %>% 
   mutate(doy = yday(mdy(DATE))) %>% 
-  dplyr::select(year = YEAR, doy = doy, time = TIME, pond = POND, sp = sp, calls = calls)
-
-## Sum all 6 daily observations and convert to df
-daily_calls <- all_ponds_long %>%
-  group_by(year, doy, pond, sp) %>%
+  dplyr::select(year = YEAR, doy = doy, time = TIME, pond = POND, sp = sp, calls = calls) %>% 
+  group_by(year, doy, pond, sp) %>% 
   summarize(dailysum = sum(calls))
 
 ```
@@ -132,7 +129,9 @@ overlapplot <- function(s1, s2, y, p) {
 
 ## Now, I can input any species pair, year, and pond to visualize
 ## I use this to spotcheck analysis and provide a visual reference for the workflow
-overlapplot("RCL", "HV", 2007, 4) 
+overlapplot("RCL", "HV", 2007, 4)
+
+
 ```
 
 ## Process Data
