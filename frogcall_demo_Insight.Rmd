@@ -1,5 +1,5 @@
 ---
-title: "Figure Design Tutorial"
+title: "Insight Demo: Frog Calls"
 author: "Shannon Carter"
 date: "July 2, 2019"
 output: 
@@ -9,13 +9,11 @@ output:
     theme: united
     highlight: tango
 ---
-## Purpose
-
-Creating effective data visuals is key for communicating science clearly. Here, I walk through the process of making one of the main figures for my paper in [Ecology Letters](https://shannonkcarter.weebly.com/uploads/1/2/2/1/122153528/cartersaenzrudolf_ele2018.pdf). I'm very proud of this paper! It got accepted to the top jounal in my field, a distinction I largely attribute to the effort I put into conceptualizing and designing these figures.
 
 ## Research Background
 
-Climate change shifts plants' and animals' seasonal schedules, because events like breeding, migration, and metamorphosis are timed by climate cues. Here, I examine this response in populations of frogs in East Texas. 20 years ago, a collaborator in the USDA installed audio recorders in 8 ponds in East Texas. These recorders are programmed to record 6 times daily, capturing the breeding calls of frogs at the ponds. I've analyzed this data in R to measure if/how frog breeding timing is shifting and how this will affect frogs' interactions with each other. I was the lead author on this project, meaning I conceptualized the questions, performed all data management and analysis, and interpreted and wrote up results for publication. This document provides a summary of the analysis for one of the two major questions for this project. 
+Climate change shifts plants' and animals' seasonal schedules, because events like breeding, migration, and metamorphosis are timed by climate cues. Here, I examine this response in populations of frogs in East Texas. 20 years ago, a collaborator in the USDA installed audio recorders in 8 ponds in East Texas. These recorders are programmed to record 6 times daily, capturing the breeding calls of frogs at the ponds. I've analyzed this data in R to measure if/how frog breeding timing is shifting and how this will affect frogs' interactions with each other. I was the lead author on this project, meaning I conceptualized the questions, performed all data management and analysis, and interpreted and wrote up results for publication. This document provides a summary of the analysis for one of the two major questions for this project. For more information, please feel free to contact me at skcarter25@gmail.com or see the full publication in [Ecology Letters](https://shannonkcarter.weebly.com/uploads/1/2/2/1/122153528/cartersaenzrudolf_ele2018.pdf)
+
 
 ```{r setup, include = F}
 knitr::opts_chunk$set(echo = TRUE)
@@ -33,12 +31,12 @@ library(wesanderson)
 library(extrafont)
 
 ## Load universal plotting elements
-mytheme <- theme_bw(base_size = 15) + #, base_family = "Franklin Gothic Medium") +
+mytheme <- theme_bw(base_size = 15, base_family = "Franklin Gothic Medium") +
   theme(legend.text = element_text(size = 10),
         legend.title = element_text(size = 11),
         text = element_text(size = 14),     
         axis.title = element_text(size = 12),
-        axis.text  = element_text(size = 10), #, family = "Consolas"),
+        axis.text  = element_text(size = 10, family = "Consolas"),
         panel.grid = element_blank())
 
 ## RAW DATA
@@ -66,7 +64,7 @@ p1test$DATE <- NULL
 head(p1test)
 ```
 
-Here, I merge the data frames for the eight ponds, melt to long format, sum the six daily observations, and adjust time & date format. The result is a tidy data frame. Each row represents the number of calls in a day for a particular species.
+Here, using the tidyverse suite of R packages, I merge the data frames for the eight ponds, gather to long format, sum the six daily observations, and adjust time & date format. 
 ```{r, echo = T, results = 'hide', warning = F}
 
 ## Stack raw data into one df
@@ -87,30 +85,15 @@ daily_calls <- all_ponds_long %>%
 
 ```
 
+The result is a tidy tibble. Each row represents the number of calls in a day for a particular species.
+
 ```{r, echo = F}
-daily_calls[15051:15055,]
+daily_calls[15048:15055,]
 ```
 
 ## Visualize Raw Data
-The above dataset gives time series for the calling behavior of each frog species. It's a lot of data! Even just looking at one year and one pond, it's difficult to make sense of the patterns of species abundance in this figure. We need a visualization that smoothes over some of the noise and highlights particular questions or comparisons needed for the planned analyses.
 
-```{r, echo = F, warning = F, fig.align = 'center', fig.height = 3.25}
-ex <- ggplot(subset(daily_calls, subset = (year == 2007 & pond == 4)), 
-              aes(x = doy, y = dailysum, color = sp)) + mytheme +
-  geom_point() + geom_line() +
-  labs(x = "day of year", 
-       y = "number of calling frogs", 
-       color = "species",
-       title = "Calling patterns of a frog community",
-       subtitle = "Year 2007, Pond 4")
-ex
-```
-
-One thing that makes the above figure difficult to read is that the data jumps around a lot. Using lowess functions, I can transform the time series into smooth distributions. This makes it easier to visualize when the frogs are active through the year and also enables quantification. 
-
-Another problem is that 12 species is just too much to present in one figure. You can't tell the species apart because the color scheme is bad and the data overlaps. The major questions of this project deals with pairwise comparisons between species. So let's focus our visualizations on 2 species at a time.
-
-The resulting figure (below) presents the same data as the figure above, but focused just on 2 of the 12 species. The result is much cleaner and, importantly, is closely related to the conceptual questions of the project. The major objective of this project was to calculate how the area of overlap (visible in the plot at the area where the orange and teal distributions intersect) changed across years for pairwise combinations of species. This would tell us if climate change-driven shifts in breeding timing influence the competition between species. 
+The above dataset gives time series for the calling behavior of each frog species. Using lowess functions, I can transform the time series into smooth distributions. This makes it easier to visualize when the frogs are active through the year and also enables quantification. Here's an example of those distributions for the gray tree frog (in orange) and the green frog (in teal) in 2007 at pond 4. The major objective of this project was to calculate how the area of overlap (visible in the plot at the area where the orange and teal distributions intersect) changed across years for pairwise combinations of species. This would tell us if climate change-driven shifts in breeding timing influence the competition between species. 
 
 I made a function to allow me to quickly generate the figure below for any species, year, and pond. I use these to spotcheck analysis and provide a visual reference for my workflow.
 
@@ -185,7 +168,7 @@ overlapmatrix <- function(y, p, s1, s2) {
                   frog2 = lf2$y)
   # designate the lower lowess because this will be the ceiling of the integrated area
   d$min <- pmin(d$frog1, d$frog2)  
-  # inegrated area of curves is time x the lower lowess curve
+  # integrated area of curves is time x the lower lowess curve
   inter <- integrate.xy(d$day, d$min) 
   # standardize overlap by making it a proportion of each species' full distribution 
   prop1 <- inter/integrate.xy(d$day, d$frog1) 
@@ -216,14 +199,14 @@ oy_scatter <- ggplot(all, aes(x = year, y = overlap, color = factor(spsp))) + my
   stat_smooth(method = lm, size = 2, se = F) +
   labs(color = "species pair") +
   theme(panel.border = element_rect(colour = "black", fill = NA, size = 1.5)) +
-  ylab("Overlap in calling phenology") + xlab("Year")
+  ylab("overlap in calling phenology") + xlab("year")
 oy_scatter
 
 ```
 
 The information we really want from this figure is the slope of each line and the amount of error around that slope (from replicate ponds). The following figure gives exactly that and is much easier to interpret and better looking. ggplot is great because it allows you to build a plot from multiple data sources and offers endless customization ability. Here, each row represents a species pair. Black points represent the average regression slope with error from pond replicates. Colored points represent the regression slope for each pond. Points that are positive indicate overlap increased across years. Points that are negative indicate that overlap decreased across years. The marginal histogram at the top shows the distribution of the points.
 
-```{r, warning = F, fig.height = 7.5, fig.width = 6, fig.align = 'center'}
+```{r, warning = F, fig.height = 8, fig.width = 6, fig.align = 'center'}
 
 ## Reorder species based on the magnitude of the regression slope so it's easier to read
 oy <- ggplot(over_year, aes(x = coef, y = reorder(spsp, coef))) + 
@@ -253,7 +236,7 @@ oy <- ggplot(over_year, aes(x = coef, y = reorder(spsp, coef))) +
   mytheme +
   
   ## Labels for axes and legend
-  labs(x = "regression slope (numerical overlap ~ year)", 
+  labs(x = "regression slope\n(numerical overlap ~ year)", 
        y = "species pair",
        color = 'pond') +
   
